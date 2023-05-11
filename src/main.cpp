@@ -52,7 +52,7 @@ struct equation {
 
 std::vector<equation> equations={
     (equation){std::string("sin(x)"),(Color){250,10,10,255}},
-    (equation){std::string("aaaa hello i am borgus the frog "),(Color){10,10,250,255}},
+    (equation){std::string("x^2 "),(Color){10,10,250,255}},
 };
 
 int focusedEq=0;
@@ -122,7 +122,7 @@ int main() {
         if (GetMouseY()<0) SetMousePosition(GetMouseX(),HEIGHT);
         if (window.width<=0) window.width=1;
         if (window.height<=0) window.height=1;
-        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !isDraggingEQWindow) {
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !isDraggingEQWindow && GetMouseX()>equationWindowSize) {
             window.x-=GetMouseDelta().x*window.width /WIDTH /(IsKeyDown(KEY_LEFT_SHIFT) ? 5 : 1);
             window.y+=GetMouseDelta().y*window.height/HEIGHT/(IsKeyDown(KEY_LEFT_SHIFT) ? 5 : 1);
         }
@@ -219,7 +219,7 @@ int main() {
             2,BLACK
         );
 
-        for (float x = roundBy(window.x+equationWindowSize*PIX_TO_UNIT,getGridUnit()); x < windowRight; x += getGridUnit()) {
+        for (float x = ceilBy(window.x+equationWindowSize*PIX_TO_UNIT,getGridUnit()); x < windowRight; x += getGridUnit()) {
             DrawLineEx(
                 {translate(x,window.x,windowRight,0,WIDTH),0},
                 {translate(x,window.x,windowRight,0,WIDTH),HEIGHT},
@@ -231,7 +231,7 @@ int main() {
             textPoint.x=clamp(textPoint.x,equationWindowSize,WIDTH-MeasureText(text,10)-10);
             textPoint.y=clamp(textPoint.y,0,HEIGHT-25);
             // if (textPoint.x<0) printf("")
-            DrawText(text,textPoint.x,textPoint.y+15,10,BLACK);
+            DrawText(text,textPoint.x+5,textPoint.y+5,10,BLACK);
         }
         for (float y = roundBy(window.y,getGridUnit()); y < windowBottom; y += getGridUnit()) {
             if (y==0) continue;
@@ -245,7 +245,7 @@ int main() {
             auto text=TextFormat("%.6g",y);
             textPoint.x=clamp(textPoint.x,equationWindowSize,WIDTH-MeasureText(text,10)-10);
             textPoint.y=clamp(textPoint.y,0,HEIGHT-25);
-            DrawText(text,textPoint.x+5,textPoint.y+15,10,BLACK);
+            DrawText(text,textPoint.x+5,textPoint.y+5,10,BLACK);
         }
 
         for (size_t e=0;e<equations.size();e++) {

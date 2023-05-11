@@ -17,6 +17,9 @@ float roundBy(float x, float y) {
 float floorBy(float x, float y) {
     return floorf(x/y)*y;
 }
+float ceilBy(float x, float y) {
+    return ceilf(x/y)*y;
+}
 float clamp(float x, float min_, float max_) {
     return max(min(x,max_),min_);
 }

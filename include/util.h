@@ -6,6 +6,7 @@ float min(float x, float y);
 float translate(float x, float a, float b, float c, float d);
 float roundBy(float x, float y);
 float floorBy(float x, float y);
+float ceilBy(float x, float y);
 float clamp(float x, float min_, float max_);
 
 
