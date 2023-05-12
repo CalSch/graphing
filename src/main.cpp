@@ -115,8 +115,11 @@ int main() {
     HideCursor();
     SetWindowState(FLAG_WINDOW_UNDECORATED);
     // Fullscreen if on Raspberry Pi
-    #ifdef __arm__
-    MaximizeWindow();
+    #ifdef __aarch64__
+    printf("\nDetected Raspberry Pi!\n\n");
+    SetWindowPosition(0,0);
+    if (!IsWindowFullscreen())
+        ToggleFullscreen();
     #endif
 
     while (!WindowShouldClose()) {
