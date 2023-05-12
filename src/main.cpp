@@ -114,6 +114,10 @@ int main() {
     SetTargetFPS(60);
     HideCursor();
     SetWindowState(FLAG_WINDOW_UNDECORATED);
+    // Fullscreen if on Raspberry Pi
+    #ifdef __arm__
+    MaximizeWindow();
+    #endif
 
     while (!WindowShouldClose()) {
         if (GetMouseX()>WIDTH) SetMousePosition(0,GetMouseY());
