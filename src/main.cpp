@@ -3,8 +3,9 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
-#include "util.h"
-#include "tinyexpr.h"
+#include <regex>
+#include "../include/util.h"
+#include "../include/tinyexpr.h"
 
 #define WIDTH  320
 #define HEIGHT 240
@@ -14,6 +15,8 @@
 #define PIX_TO_UNIT float(window.width)/float(WIDTH)
 #define windowRight window.x+window.width
 #define windowBottom window.y+window.height
+
+RenderTexture2D scr;
 
 // #region window
 Rectangle window={-10.f,-10*RATIO,20.f,20.f*RATIO};
@@ -63,6 +66,7 @@ void drawEquations() {
     DrawRectangle(equationWindowSize,0,4,HEIGHT,{0,0,0,30});
     BeginScissorMode(0,0,equationWindowSize,HEIGHT);
     DrawRectangle(0,0,equationWindowSize,HEIGHT,WHITE);
+
     for (size_t i=0; i<equations.size(); i++) {
         equation eq=equations.at(i);
         DrawCircle(15,15+i*25,6,eq.color);
@@ -76,15 +80,15 @@ void drawEquations() {
     EndScissorMode();
 }
 
-void save() {
-    std::string s="";
-    for (size_t i=0;i<equations.size();i++) {
-        s+=equations[i].str;
-        s+="\n";
-    }
+// void save() {
+//     std::string s="";
+//     for (size_t i=0;i<equations.size();i++) {
+//         s+=equations[i].str;
+//         s+="\n";
+//     }
 
-    SaveFileText("save.txt",s.c_str());
-}
+//     SaveFileText("save.txt",s.c_str());
+// }
 
 //#endregion
 
@@ -110,7 +114,7 @@ bool isDraggingEQWindow=false;
 int main() {
     // printf("%d\n",1/0);
     printf("------\n%f\n------\n",float(HEIGHT)/float(WIDTH));
-    InitWindow(WIDTH,HEIGHT,"graphing");
+    InitWindow(WIDTH*2,HEIGHT*2,"graphing");
     SetTargetFPS(60);
     HideCursor();
     SetWindowState(FLAG_WINDOW_UNDECORATED);
@@ -122,19 +126,28 @@ int main() {
         ToggleFullscreen();
     #endif
 
+    scr=LoadRenderTexture(WIDTH,HEIGHT);
+
     while (!WindowShouldClose()) {
-        if (GetMouseX()>WIDTH) SetMousePosition(0,GetMouseY());
-        if (GetMouseY()>HEIGHT) SetMousePosition(GetMouseX(),0);
-        if (GetMouseX()<0) SetMousePosition(WIDTH,GetMouseY());
-        if (GetMouseY()<0) SetMousePosition(GetMouseX(),HEIGHT);
+        // if (GetMouseX()>WIDTH) SetMousePosition(0,GetMouseY());
+        // if (GetMouseY()>HEIGHT) SetMousePosition(GetMouseX(),0);
+        // if (GetMouseX()<0) SetMousePosition(WIDTH,GetMouseY());
+        // if (GetMouseY()<0) SetMousePosition(GetMouseX(),HEIGHT);
+        Vector2 mousePos = GetMousePosition();
+        mousePos.x/=2;
+        mousePos.y/=2;
+        Vector2 mouseDelta = GetMouseDelta();
+        mouseDelta.x/=2;
+        mouseDelta.y/=2;
+
         if (window.width<=0) window.width=1;
         if (window.height<=0) window.height=1;
-        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !isDraggingEQWindow && GetMouseX()>equationWindowSize) {
-            window.x-=GetMouseDelta().x*window.width /WIDTH /(IsKeyDown(KEY_LEFT_SHIFT) ? 5 : 1);
-            window.y+=GetMouseDelta().y*window.height/HEIGHT/(IsKeyDown(KEY_LEFT_SHIFT) ? 5 : 1);
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !isDraggingEQWindow && mousePos.x>equationWindowSize) {
+            window.x-=mouseDelta.x*window.width /WIDTH /(IsKeyDown(KEY_LEFT_SHIFT) ? 5 : 1);
+            window.y+=mouseDelta.y*window.height/HEIGHT/(IsKeyDown(KEY_LEFT_SHIFT) ? 5 : 1);
         }
 
-        if (CheckCollisionPointRec(GetMousePosition(),{equationWindowSize-2,0,4,HEIGHT})) {
+        if (CheckCollisionPointRec(mousePos,{(float)equationWindowSize-2,0,4,HEIGHT})) {
             cursorColor=RED;
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 isDraggingEQWindow=true;
@@ -146,13 +159,13 @@ int main() {
             cursorColor=BLUE;
         }
         if (isDraggingEQWindow) {
-            equationWindowSize=GetMouseX();
+            equationWindowSize=mousePos.x;
         }
 
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && GetMouseX()<=equationWindowSize) {
-            for (size_t i=0;i<equations.size();i++) {
-                if (CheckCollisionPointRec(GetMousePosition(),{
-                    2,5+i*25,equationWindowSize-10,25
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mousePos.x<=equationWindowSize) {
+            for (int i=0;i<equations.size();i++) {
+                if (CheckCollisionPointRec(mousePos,{
+                    2,(float)(5+i*25),(float)equationWindowSize-10,25
                 })) {
                     focusedEq=i;
                 }
@@ -188,7 +201,7 @@ int main() {
         if (IsKeyPressed(KEY_ENTER)) {
             equations.insert(equations.begin()+focusedEq+1,(equation){
                 std::string(""),
-                (Color){GetRandomValue(0,255),GetRandomValue(0,255),GetRandomValue(0,255),255},
+                (Color){(unsigned char)GetRandomValue(0,255),(unsigned char)GetRandomValue(0,255),(unsigned char)GetRandomValue(0,255),255},
             });
             focusedEq++;
         }
@@ -209,7 +222,8 @@ int main() {
         if (abs(GetMouseWheelMove())!=0)
             scaleWindow(-GetMouseWheelMove());
 
-        BeginDrawing();
+        // #region drawing
+        BeginTextureMode(scr);
 
         ClearBackground(RAYWHITE);
         
@@ -255,11 +269,17 @@ int main() {
             DrawText(text,textPoint.x+5,textPoint.y+5,10,BLACK);
         }
 
+
+        double x{ 0 };
+        std::vector<te_variable> vars = {{"x", &x}};
         for (size_t e=0;e<equations.size();e++) {
             equation eq=equations.at(e);
 
-            double x{ 0 };
-            tep.set_variables_and_functions({{"x", &x}});
+            if (eq.str.rfind("y=", 0) == 0) {
+                eq.str=eq.str.substr(2,eq.str.size()-2);
+            }
+
+            tep.set_variables_and_functions(vars);
 
             auto result = tep.evaluate(eq.str.c_str());
 
@@ -282,13 +302,21 @@ int main() {
         drawEquations();
 
 
-        DrawLineEx(sub(GetMousePosition(),GetMouseDelta()),GetMousePosition(),3,cursorColor);
-        DrawCircle(GetMousePosition().x,GetMousePosition().y,2,cursorColor);
+        DrawLineEx(sub(mousePos,mouseDelta),mousePos,3,cursorColor);
+        DrawCircle(mousePos.x,mousePos.y,2,cursorColor);
         DrawText(TextFormat("%d",GetFPS()),10,HEIGHT-10-10,10,BLACK);
         // DrawText(TextFormat("(%.2f,%.2f) %.2fx%.2f",window.x,window.y,window.width,window.height),10,25,10,BLACK);
 
+        EndTextureMode();
+
+        // #endregion
+
+        BeginDrawing();
+        DrawTexturePro(scr.texture, (Rectangle) { 0,0,(float)scr.texture.width, (float)-scr.texture.height }, (Rectangle) {0,0,WIDTH*2,HEIGHT*2}, (Vector2) { 0, 0 }, 0, WHITE);
         EndDrawing();
+
     }
+    UnloadRenderTexture(scr);
 
     CloseWindow();
 }
