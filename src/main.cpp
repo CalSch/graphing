@@ -46,37 +46,59 @@ float graphStep=1;
 
 //#endregion
 
-// #region input
+// #region equations
 
 struct equation {
     std::string str;
     Color color;
+    int error;
 };
 
 std::vector<equation> equations={
-    (equation){std::string("sin(x)"),(Color){250,10,10,255}},
-    (equation){std::string("x^2 "),(Color){10,10,250,255}},
+    (equation){std::string("sin(x)"),(Color){250,10,10,255},-1},
+    (equation){std::string("x^2 "),(Color){10,10,250,255},-1},
 };
 
 int focusedEq=0;
 int cursor=0;
 int equationWindowSize=150;
 
-void drawEquations() {
+Rectangle getEquationRect(int i) {
+    return {
+        5,
+        5+i*25,
+        equationWindowSize-10,
+        25
+    };
+}
+
+void drawEquationsWindow(Vector2 mousePos) {
     DrawRectangle(equationWindowSize,0,4,HEIGHT,{0,0,0,30});
     BeginScissorMode(0,0,equationWindowSize,HEIGHT);
     DrawRectangle(0,0,equationWindowSize,HEIGHT,WHITE);
 
     for (size_t i=0; i<equations.size(); i++) {
         equation eq=equations.at(i);
-        DrawCircle(15,15+i*25,6,eq.color);
-        DrawText(eq.str.c_str(),25,10+i*25,10,BLACK);
-        DrawRectangle(5,25+i*25,equationWindowSize-10,1,GRAY);
+        Rectangle rect=getEquationRect((int)i);
+        // DrawRectangleRec(rect,eq.color);
+
+        DrawCircle(rect.x+10,rect.y+rect.height/2,6,eq.color); // Equation color, circle at vertical center of rect 
+        DrawText(eq.str.c_str(),rect.x+20,rect.y+rect.height/2-5,10,BLACK); // Equation text
+        DrawRectangle(rect.x+5,rect.y+rect.height,rect.width-10,1,GRAY);
         if (focusedEq==i && std::fmod(GetTime(),0.5)<0.25) {
             std::string s=eq.str.substr(0,cursor);
-            DrawRectangle(25+MeasureText(s.c_str(),10),10+i*25-1,1,12,BLACK);
+            DrawRectangle(rect.x+20+MeasureText(s.c_str(),10),rect.y+6,1,12,BLACK);
+        }
+
+        if (eq.error != -1) {
+            if (CheckCollisionPointCircle(mousePos,{rect.x+2,rect.y+5},5)) {
+                DrawText(TextFormat("%d",eq.error),rect.x,rect.y,10,RED);
+            } else {
+                DrawCircle(rect.x+2,rect.y+5,2,RED);
+            }
         }
     }
+
     EndScissorMode();
 }
 
@@ -92,24 +114,12 @@ void drawEquations() {
 
 //#endregion
 
-
-float func(float x) {
-    // return powf(x,2);
-    // return GetRandomValue(-1,1);
-    // return asinf(sinf(x));
-    // return 2*powf(x,3) + 4*powf(x,2) + 1.5*x - 0.1;
-    // return 1/x;
-    // return sin(2 * PI * x) + cos(x / 2 * PI);
-    // return sqrt(1-pow(x,2));
-    // return cos(x*14+GetTime()*2+1)/2+pow(0.7,sin(x+GetTime()*10+cos(GetTime()*5))+cos(x*2.3)/1.1+sin(x*3-31)*2-cos(x*12+GetTime()*15+1)/2);
-    // return pow(2.7,x);
-    return -abs(2*x)+pow(x,2);
-}
-
 te_parser tep;
 
 Color cursorColor=BLUE;
 bool isDraggingEQWindow=false;
+
+const std::regex varDefRegex=std::regex("^(([a-zA-Z])[a-zA-Z0-9_]*)=");
 
 int main() {
     // printf("%d\n",1/0);
@@ -122,13 +132,13 @@ int main() {
     #ifdef __aarch64__
     printf("\nDetected Raspberry Pi!\n\n");
     SetWindowPosition(0,0);
-    if (!IsWindowFullscreen())
-        ToggleFullscreen();
+    ToggleFullscreen();
     #endif
 
     scr=LoadRenderTexture(WIDTH,HEIGHT);
 
     while (!WindowShouldClose()) {
+        // #region update
         // if (GetMouseX()>WIDTH) SetMousePosition(0,GetMouseY());
         // if (GetMouseY()>HEIGHT) SetMousePosition(GetMouseX(),0);
         // if (GetMouseX()<0) SetMousePosition(WIDTH,GetMouseY());
@@ -164,9 +174,7 @@ int main() {
 
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mousePos.x<=equationWindowSize) {
             for (int i=0;i<equations.size();i++) {
-                if (CheckCollisionPointRec(mousePos,{
-                    2,(float)(5+i*25),(float)equationWindowSize-10,25
-                })) {
+                if (CheckCollisionPointRec(mousePos,getEquationRect(i))) {
                     focusedEq=i;
                 }
             }
@@ -221,12 +229,15 @@ int main() {
 
         if (abs(GetMouseWheelMove())!=0)
             scaleWindow(-GetMouseWheelMove());
+        
+        // #endregion
 
         // #region drawing
         BeginTextureMode(scr);
 
         ClearBackground(RAYWHITE);
         
+        // #region grid
         // x=0
         DrawLineEx(
             {translate(0,window.x,windowRight,0,WIDTH),0},
@@ -269,37 +280,78 @@ int main() {
             DrawText(text,textPoint.x+5,textPoint.y+5,10,BLACK);
         }
 
+        // #endregion
+
 
         double x{ 0 };
-        std::vector<te_variable> vars = {{"x", &x}};
+        double t{ GetTime() };
+        std::vector<te_variable> vars = {{"x", &x},{"t", &t}};
+
         for (size_t e=0;e<equations.size();e++) {
             equation eq=equations.at(e);
 
-            if (eq.str.rfind("y=", 0) == 0) {
-                eq.str=eq.str.substr(2,eq.str.size()-2);
+            if (eq.str.size()==0) {
+                equations[e].error=-1;
+                continue;
             }
 
-            tep.set_variables_and_functions(vars);
+            std::smatch match;
+            if (std::regex_search(eq.str,match,varDefRegex)) {
+                std::string varName(match[1]);
+                bool exists=false;
+                for (auto var : vars) {
+                    if (std::string(var.m_name.c_str())==varName) {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (exists) {
+                    equations[e].error=-2;
+                    continue;
+                }
+                std::string sliced=eq.str.substr(varName.size()+1);
+                auto result = tep.evaluate(sliced.c_str());
 
-            auto result = tep.evaluate(eq.str.c_str());
+                if (!tep.success()) {
+                    equations[e].error=tep.get_last_error_position();
+                    continue;
+                } else {
+                    equations[e].error=-1;
+                }
 
-            if (!tep.success()) continue;
+                vars.push_back({std::string(varName).c_str(),&result});
+            } else {
+                if (eq.str.rfind("y=", 0) == 0) {
+                    eq.str=eq.str.substr(2,eq.str.size()-2);
+                }
 
-            Vector2 lastPoint={window.x-1,0};
-            for (float i=0; i<=float(WIDTH); i+=graphStep) {
-                x=i/float(WIDTH);
-                x*=float(window.width);
-                x+=window.x;
-                // printf("x=%f %f %f\n",x,window.x,windowRight);
-                // WaitTime(0.1);
-                Vector2 point={x,tep.evaluate()};
-                DrawLineEx(translatePoint(lastPoint),translatePoint(point),2,eq.color);
-                lastPoint=point;
+                tep.set_variables_and_functions(vars);
+
+                auto result = tep.evaluate(eq.str.c_str());
+
+                if (!tep.success()) {
+                    equations[e].error=tep.get_last_error_position();
+                    continue;
+                } else {
+                    equations[e].error=-1;
+                }
+
+                Vector2 lastPoint={window.x-1,0};
+                for (float i=0; i<=float(WIDTH); i+=graphStep) {
+                    x=i/float(WIDTH);
+                    x*=float(window.width);
+                    x+=window.x;
+                    // printf("x=%f %f %f\n",x,window.x,windowRight);
+                    // WaitTime(0.1);
+                    Vector2 point={x,tep.evaluate()};
+                    DrawLineEx(translatePoint(lastPoint),translatePoint(point),2,eq.color);
+                    lastPoint=point;
+                }
             }
         }
         // printf("----------------------------\n");
 
-        drawEquations();
+        drawEquationsWindow(mousePos);
 
 
         DrawLineEx(sub(mousePos,mouseDelta),mousePos,3,cursorColor);
