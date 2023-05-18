@@ -185,7 +185,7 @@ int main() {
             if (cursor>0) {
                 equations[focusedEq].str.erase(cursor-1,1);
                 cursor--;
-            } else {
+            } else if (equations.size()>1) {
                 equations.erase(equations.begin()+focusedEq);
                 focusedEq--;
                 focusedEq=max(focusedEq,0);
@@ -200,7 +200,7 @@ int main() {
             if (cursor>0)
                 cursor--;
         }
-        if (IsKeyPressed(KEY_DOWN) && focusedEq<equations.size()) {
+        if (IsKeyPressed(KEY_DOWN) && focusedEq<equations.size()-1) {
             focusedEq++;
         }
         if (IsKeyPressed(KEY_UP) && focusedEq>0) {
