@@ -15,6 +15,7 @@
 #define PIX_TO_UNIT float(window.width)/float(WIDTH)
 #define windowRight window.x+window.width
 #define windowBottom window.y+window.height
+#define EQ_WINDOW_HANDLE_SIZE 4
 
 RenderTexture2D scr;
 
@@ -118,6 +119,7 @@ te_parser tep;
 
 Color cursorColor=BLUE;
 bool isDraggingEQWindow=false;
+bool isDraggingGraph=false;
 
 const std::regex varDefRegex=std::regex("^(([a-zA-Z])[a-zA-Z0-9_]*)=");
 
@@ -139,10 +141,6 @@ int main() {
 
     while (!WindowShouldClose()) {
         // #region update
-        // if (GetMouseX()>WIDTH) SetMousePosition(0,GetMouseY());
-        // if (GetMouseY()>HEIGHT) SetMousePosition(GetMouseX(),0);
-        // if (GetMouseX()<0) SetMousePosition(WIDTH,GetMouseY());
-        // if (GetMouseY()<0) SetMousePosition(GetMouseX(),HEIGHT);
         Vector2 mousePos = GetMousePosition();
         mousePos.x/=2;
         mousePos.y/=2;
@@ -152,12 +150,22 @@ int main() {
 
         if (window.width<=0) window.width=1;
         if (window.height<=0) window.height=1;
-        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !isDraggingEQWindow && mousePos.x>equationWindowSize) {
+
+        // This is before drag detection because we want to start the movement the frame after the click.
+        // This is because on a touchscreen, you simultaneously move and click when you tap it, which leads to the window moving every time you tap it.
+        if (isDraggingGraph) {
             window.x-=mouseDelta.x*window.width /WIDTH /(IsKeyDown(KEY_LEFT_SHIFT) ? 5 : 1);
             window.y+=mouseDelta.y*window.height/HEIGHT/(IsKeyDown(KEY_LEFT_SHIFT) ? 5 : 1);
         }
 
-        if (CheckCollisionPointRec(mousePos,{(float)equationWindowSize-2,0,4,HEIGHT})) {
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mousePos.x>equationWindowSize+EQ_WINDOW_HANDLE_SIZE/2+1) {
+            isDraggingGraph=true;
+        }
+        if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+            isDraggingGraph=false;
+        }
+
+        if (CheckCollisionPointRec(mousePos,{(float)equationWindowSize-EQ_WINDOW_HANDLE_SIZE/2,0,EQ_WINDOW_HANDLE_SIZE,HEIGHT})) {
             cursorColor=RED;
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 isDraggingEQWindow=true;
@@ -238,18 +246,6 @@ int main() {
         ClearBackground(RAYWHITE);
         
         // #region grid
-        // x=0
-        DrawLineEx(
-            {translate(0,window.x,windowRight,0,WIDTH),0},
-            {translate(0,window.x,windowRight,0,WIDTH),HEIGHT},
-            2,BLACK
-        );
-        // y=0
-        DrawLineEx(
-            {0,    translate(0,window.y,windowBottom,HEIGHT,0)},
-            {WIDTH,translate(0,window.y,windowBottom,HEIGHT,0)},
-            2,BLACK
-        );
 
         for (float x = ceilBy(window.x+equationWindowSize*PIX_TO_UNIT,getGridUnit()); x < windowRight; x += getGridUnit()) {
             DrawLineEx(
@@ -280,9 +276,22 @@ int main() {
             DrawText(text,textPoint.x+5,textPoint.y+5,10,BLACK);
         }
 
+        // x=0
+        DrawLineEx(
+            {translate(0,window.x,windowRight,0,WIDTH),0},
+            {translate(0,window.x,windowRight,0,WIDTH),HEIGHT},
+            2,BLACK
+        );
+        // y=0
+        DrawLineEx(
+            {0,    translate(0,window.y,windowBottom,HEIGHT,0)},
+            {WIDTH,translate(0,window.y,windowBottom,HEIGHT,0)},
+            2,BLACK
+        );
+
         // #endregion
 
-
+        // #region equations
         double x{ 0 };
         double t{ GetTime() };
         std::vector<te_variable> vars = {{"x", &x},{"t", &t}};
@@ -319,7 +328,7 @@ int main() {
                     equations[e].error=-1;
                 }
 
-                vars.push_back({std::string(varName).c_str(),&result});
+                vars.push_back({varName.c_str(),result});
             } else {
                 if (eq.str.rfind("y=", 0) == 0) {
                     eq.str=eq.str.substr(2,eq.str.size()-2);
@@ -349,9 +358,19 @@ int main() {
                 }
             }
         }
-        // printf("----------------------------\n");
+        std::string varsString("[ ");
+        for (auto& var : tep.get_variables_and_functions()) {
+            if (var.m_name=="x") continue;
+            double value=tep.evaluate(var.m_name.c_str());
+            varsString.append(TextFormat("(%s: %.4g) ",var.m_name.c_str(),value));
+        }
+        varsString.append("]");
+
+        // #endregion
 
         drawEquationsWindow(mousePos);
+
+        DrawText(varsString.c_str(),30,HEIGHT-20,10,BLACK);
 
 
         DrawLineEx(sub(mousePos,mouseDelta),mousePos,3,cursorColor);
