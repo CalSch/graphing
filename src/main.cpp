@@ -83,8 +83,10 @@ void drawEquationsWindow(Vector2 mousePos) {
         Rectangle rect=getEquationRect((int)i);
         // DrawRectangleRec(rect,eq.color);
 
-        DrawCircle(rect.x+10,rect.y+rect.height/2,6,eq.color); // Equation color, circle at vertical center of rect 
-        DrawText(eq.str.c_str(),rect.x+20,rect.y+rect.height/2-5,10,BLACK); // Equation text
+        DrawCircle(rect.x+10,rect.y+rect.height/2,6,eq.color); // Equation color, circle at vertical center of rect
+        Vector2 textPos={rect.x+20,rect.y+rect.height/2-5};
+        DrawText(eq.str.c_str(),textPos.x,textPos.y,10,BLACK); // Equation text
+
         DrawRectangle(rect.x+5,rect.y+rect.height,rect.width-10,1,GRAY);
         if (focusedEq==i && std::fmod(GetTime(),0.5)<0.25) {
             std::string s=eq.str.substr(0,cursor);
@@ -92,10 +94,13 @@ void drawEquationsWindow(Vector2 mousePos) {
         }
 
         if (eq.error != -1) {
-            if (CheckCollisionPointCircle(mousePos,{rect.x+2,rect.y+5},5)) {
-                DrawText(TextFormat("%d",eq.error),rect.x,rect.y,10,RED);
-            } else {
-                DrawCircle(rect.x+2,rect.y+5,2,RED);
+            DrawCircle(rect.x+2,rect.y+5,2,RED);
+            if (eq.error>-1) {
+                std::string beforeError = eq.str.substr(0,eq.error);
+                std::string errorChar = eq.str.substr(eq.error,1);
+                int barX = textPos.x + MeasureText(beforeError.c_str(),10);
+                int barW = MeasureText(errorChar.c_str(),10) + 2;
+                DrawRectangle(barX,textPos.y+10,barW,1,RED);
             }
         }
     }
