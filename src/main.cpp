@@ -57,7 +57,7 @@ struct equation {
 
 std::vector<equation> equations={
     (equation){std::string("sin(x)"),(Color){250,10,10,255},-1},
-    (equation){std::string("x^2 "),(Color){10,10,250,255},-1},
+    (equation){std::string("x^2"),(Color){10,10,250,255},-1},
 };
 
 int focusedEq=0;
@@ -189,6 +189,7 @@ int main() {
             for (int i=0;i<equations.size();i++) {
                 if (CheckCollisionPointRec(mousePos,getEquationRect(i))) {
                     focusedEq=i;
+                    break;
                 }
             }
         }
