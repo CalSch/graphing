@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 #include <regex>
-#include "../include/util.h"
-#include "../include/tinyexpr.h"
+#include "util.h"
+#include "tinyexpr.h"
 
 #define WIDTH  320
 #define HEIGHT 240
