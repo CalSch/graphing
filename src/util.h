@@ -1,5 +1,6 @@
 #pragma once
 #include <raymath.h>
+#include <string>
 float max(float x, float y);
 float min(float x, float y);
 
@@ -14,3 +15,5 @@ Vector2 add(Vector2 v1,Vector2 v2);
 Vector2 sub(Vector2 v1,Vector2 v2);
 Vector2 mul(Vector2 v1,Vector2 v2);
 Vector2 div(Vector2 v1,Vector2 v2);
+
+std::string lowerText(std::string str);

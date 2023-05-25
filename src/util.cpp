@@ -1,5 +1,6 @@
 #include "util.h"
 #include <raymath.h>
+#include <string>
 
 float max(float x, float y) {
     return x>y?x:y;
@@ -29,3 +30,11 @@ Vector2 add(Vector2 v1,Vector2 v2) {return Vector2{v1.x+v2.x,v1.y+v2.y};}
 Vector2 sub(Vector2 v1,Vector2 v2) {return Vector2{v1.x-v2.x,v1.y-v2.y};}
 Vector2 mul(Vector2 v1,Vector2 v2) {return Vector2{v1.x*v2.x,v1.y*v2.y};}
 Vector2 div(Vector2 v1,Vector2 v2) {return Vector2{v1.x/v2.x,v1.y/v2.y};}
+
+std::string lowerText(std::string str) {
+    std::string out="";
+    for (int i=0;i<str.size();i++) {
+        out.append(std::string(1,(char)tolower(str.at(i))));
+    }
+    return out;
+}
