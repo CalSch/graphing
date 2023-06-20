@@ -3,11 +3,13 @@
 #include <raylib.h>
 #include <string>
 #include <vector>
+#include "editor.h"
 
 struct equation {
     std::string str;
     Color color;
     int error;
+    Editor editor;
 };
 
 class EquationWindow {
@@ -19,13 +21,15 @@ class EquationWindow {
         int focusedEq;
         int cursor;
         EquationWindow() {
+            std::string str("sin(x)");
             this->equations={
-                {std::string("sin(x)"), RED, -1}
+                {str, RED, -1, Editor(
+                    &str
+                )}
             };
             this->width=150;
             this->focusedEq=0;
             this->cursor=0;
-
         }
 
         Rectangle getEquationRect(int i);
