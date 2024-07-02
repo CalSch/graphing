@@ -6,20 +6,45 @@
 #include "defines.h"
 
 
-void Editor::update(Vector2 mousePos) {
+bool isWordSeparator(char c) {
+    int i=0;
+    while (wordSeparators[i]) {
+        if (wordSeparators[i]==c) {
+            return true;
+        }
+        i++;
+    }
+
+    return false;
+}
+
+void Editor::update(Vector2 mousePos, bool doBackspace) {
     if (!focused) return;
 
     if (IsKeyPressed(KEY_RIGHT)) {
         if (cursor<text.size()) {
             cursor++;
+
+            if (IsKeyDown(KEY_LEFT_CONTROL)) {
+                while (!isWordSeparator(text[cursor])) {
+                    cursor++;
+                }
+            }
         }
     }
     if (IsKeyPressed(KEY_LEFT)) {
-        if (cursor>0)
+        if (cursor>0) {
             cursor--;
+
+            if (IsKeyDown(KEY_LEFT_CONTROL)) {
+                while (!isWordSeparator(text[cursor-1])) {
+                    cursor--;
+                }
+            }
+        }
     }
 
-    if (IsKeyPressed(KEY_BACKSPACE)) {
+    if (doBackspace && IsKeyPressed(KEY_BACKSPACE)) {
         if (cursor>0) {
             text.erase(cursor-1,1);
             cursor--;

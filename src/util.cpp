@@ -1,6 +1,7 @@
 #include "util.h"
 #include <raymath.h>
 #include <string>
+#include <vector>
 
 float max(float x, float y) {
     return x>y?x:y;
@@ -37,4 +38,20 @@ std::string lowerText(std::string str) {
         out.append(std::string(1,(char)tolower(str.at(i))));
     }
     return out;
+}
+
+std::vector<std::string> splitText(std::string str, char delimeter) {
+    std::vector<std::string> list;
+    std::string lastStr;
+    for (char c : str) {
+        if (c==delimeter) {
+            list.push_back(lastStr);
+            lastStr="";
+        } else {
+            lastStr.push_back(c);
+        }
+    }
+
+    list.push_back(lastStr);
+    return list;
 }

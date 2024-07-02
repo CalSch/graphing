@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <regex>
+#include <fstream>
 #include "util.h"
 #include "tinyexpr.h"
 #include "defines.h"
@@ -21,6 +22,8 @@ Color cursorColor=BLUE;
 
 bool windowMoved=true;
 float graphStep=1;
+
+std::regex eqLineRegex("(\\d{1,3}) (\\d{1,3}) (\\d{1,3}) (.*)");
 
 // #region window
 Rectangle window={-10.f,-10*RATIO,20.f,20.f*RATIO};
@@ -54,15 +57,46 @@ Vector2 translatePoint(Vector2 p) {
 
 EquationWindow eqWin;
 
-// void save() {
-//     std::string s="";
-//     for (size_t i=0;i<equations.size();i++) {
-//         s+=equations[i].str;
-//         s+="\n";
-//     }
+void save() {
+    std::string s="";
+    for (auto eq : eqWin.equations) {
+        s+=TextFormat("%d %d %d %s\n",eq.color.r,eq.color.g,eq.color.b,eq.str.c_str());
+    }
 
-//     SaveFileText("save.txt",s.c_str());
-// }
+    std::ofstream out("equations.txt");
+    out << s;
+    out.close();
+}
+void load() {
+    eqWin.equations={};
+    std::ifstream in("equations.txt");
+    std::string line;
+    if (in.is_open()) {
+        while (getline(in,line)) {
+            std::smatch m;
+            if (std::regex_search(line,m,eqLineRegex)) {
+                std::string eqStr = m[4];
+                for (int i=0;i<m.size();i++) {
+                    auto s=m[i];
+                    printf("'%s' ",s.str().c_str());
+                }
+                printf("\n");
+                Editor ed(&eqStr);
+                eqWin.equations.push_back((equation){
+                    eqStr, (Color){
+                        std::stoi(m[1]),
+                        std::stoi(m[2]),
+                        std::stoi(m[3]),
+                        255
+                    }, -1, ed
+                });
+            } else {
+                throw "aaaaa help!";
+            }
+        }
+        in.close();
+    }
+}
 
 //#endregion
 
@@ -202,6 +236,14 @@ int main() {
         if (windowMoved) {
             drawGrid();
         }
+
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) {
+            save();
+        }
+
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_L)) {
+            load();
+        }
         
         // #endregion
 
@@ -233,17 +275,32 @@ int main() {
         double x{ 0 };
         double t{ GetTime() };
         std::vector<te_variable> vars = {{"x", &x},{"t", &t}};
+        std::vector<te_variable> user_vars = {};
 
         for (size_t e=0;e<eqWin.equations.size();e++) {
             equation eq=eqWin.equations.at(e);
 
-            if (eq.str.size()==0) {
+            std::string str = eq.str;
+
+            if (str.size()==0) {
                 eqWin.equations[e].error=-1;
                 continue;
             }
 
+            bool useX = false;
+            if (str.rfind("x=",0) == 0) {
+                str=str.substr(2,str.size()-2);
+                useX=true;
+            }
+
+            if (useX) {
+                vars = {{"y", &x},{"t", &t}};
+            } else {
+                vars = {{"x", &x},{"t", &t}};
+            }
+
             std::smatch match;
-            if (std::regex_search(eq.str,match,varDefRegex)) {
+            if (std::regex_search(str,match,varDefRegex)) {
                 std::string varName(match[1]);
                 bool exists=false;
                 for (auto var : vars) {
@@ -256,7 +313,7 @@ int main() {
                     eqWin.equations[e].error=-2;
                     continue;
                 }
-                std::string sliced=eq.str.substr(varName.size()+1);
+                std::string sliced=str.substr(varName.size()+1);
                 auto result = tep.evaluate(sliced.c_str());
 
                 if (!tep.success()) {
@@ -266,15 +323,23 @@ int main() {
                     eqWin.equations[e].error=-1;
                 }
 
-                vars.push_back({varName.c_str(),result});
+                user_vars.push_back({varName.c_str(),result});
             } else {
-                if (eq.str.rfind("y=", 0) == 0) {
-                    eq.str=eq.str.substr(2,eq.str.size()-2);
+                if (str.rfind("y=", 0) == 0) {
+                    str=str.substr(2,str.size()-2);
                 }
 
-                tep.set_variables_and_functions(vars);
+                std::vector<te_variable> new_vars;
+                for (auto var : vars) {
+                    new_vars.push_back(var);
+                }
+                for (auto var : user_vars) {
+                    new_vars.push_back(var);
+                }
+                tep.set_variables_and_functions(new_vars);
+                // tep.set_variables_and_functions(user_vars);
 
-                auto result = tep.evaluate(eq.str.c_str());
+                auto result = tep.evaluate(str.c_str());
 
                 if (!tep.success()) {
                     eqWin.equations[e].error=tep.get_last_error_position();
@@ -283,22 +348,22 @@ int main() {
                     eqWin.equations[e].error=-1;
                 }
 
-                Vector2 lastPoint={window.x-1,0};
-                for (float i=0; i<=float(WIDTH); i+=graphStep) {
-                    x=i/float(WIDTH);
-                    x*=float(window.width);
-                    x+=window.x;
+                Vector2 lastPoint=useX ? (Vector2){0,window.y-1} : (Vector2){window.x-1,0};
+                for (double i=0; i<=double(useX ? HEIGHT : WIDTH); i+=graphStep) {
+                    x=i/double(useX ? HEIGHT : WIDTH);
+                    x*=double(useX ? window.height : window.width);
+                    x+=double(useX ? window.y : window.x);
                     // printf("x=%f %f %f\n",x,window.x,windowRight);
                     // WaitTime(0.1);
-                    Vector2 point={x,tep.evaluate()};
-                    DrawLineEx(translatePoint(lastPoint),translatePoint(point),2,eq.color);
+                    Vector2 point=useX ? (Vector2){tep.evaluate(),x} : (Vector2){x,tep.evaluate()};
+                    DrawLineEx(translatePoint(lastPoint),translatePoint(point),1,eq.color);
                     lastPoint=point;
                 }
             }
         }
         std::string varsString("[ ");
         for (auto& var : tep.get_variables_and_functions()) {
-            if (var.m_name=="x") continue;
+            if (var.m_name=="x" || var.m_name=="y") continue;
             double value=tep.evaluate(var.m_name.c_str());
             varsString.append(TextFormat("(%s: %.4g) ",var.m_name.c_str(),value));
         }

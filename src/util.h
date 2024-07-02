@@ -1,6 +1,7 @@
 #pragma once
 #include <raymath.h>
 #include <string>
+#include <vector>
 float max(float x, float y);
 float min(float x, float y);
 
@@ -17,3 +18,4 @@ Vector2 mul(Vector2 v1,Vector2 v2);
 Vector2 div(Vector2 v1,Vector2 v2);
 
 std::string lowerText(std::string str);
+std::vector<std::string> splitText(std::string str, char delimeter);

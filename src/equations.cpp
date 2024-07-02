@@ -51,6 +51,7 @@ void EquationWindow::draw(Vector2 mousePos) {
 }
 
 void EquationWindow::update(Vector2 mousePos) {
+    bool deletedEq = false;
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && mousePos.x<=width) {
         for (int i=0;i<equations.size();i++) {
@@ -66,6 +67,8 @@ void EquationWindow::update(Vector2 mousePos) {
             equations.erase(equations.begin()+focusedEq);
             focusedEq--;
             focusedEq=max(focusedEq,0);
+            
+            deletedEq = true;
             // equations[focusedEq].editor.cursor=equations[focusedEq].str.size();
         }
     }
@@ -88,7 +91,7 @@ void EquationWindow::update(Vector2 mousePos) {
         equation eq=equations[i];
         eq.editor.focused=(i==focusedEq);
         eq.editor.text=eq.str;
-        eq.editor.update(mousePos);
+        eq.editor.update(mousePos, !deletedEq);
         eq.str=eq.editor.text;
         equations[i]=eq;
         // equations[i].editor.text=eq.editor.text;

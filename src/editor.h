@@ -3,7 +3,10 @@
 #include <raylib.h>
 #include <regex>
 
-const std::regex wordRegex("`~!@#\$%\^&\*\(\)-=\+\[{]}\\\|;:'\",\.<>\/\?");
+const std::regex wordRegex("`~!@#\\$%\\^&\\*\\(\\)-=\\+\\[\\{\\]\\}\\\\\\|;:'\\\",\\.<>\\/\\?");
+const char wordSeparators[] = "`~!@#$%^&*({[<>]})-=+\\|;:'\",./?";
+
+bool isWordSeparator(char c);
 
 class Editor {
 private:
@@ -29,5 +32,5 @@ public:
     }
 
     void draw(Rectangle rect, int error);
-    void update(Vector2 mousePos);
+    void update(Vector2 mousePos, bool doBackspace);
 };
