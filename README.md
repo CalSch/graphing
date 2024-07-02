@@ -8,12 +8,13 @@ This uses the [raylib](https://github.com/raysan5/raylib) and [tinyexpr++](https
 - Multiple equations with random colors
 - Functions like abs, log, sin, cos, tan, atan, etc.
 - Moveable and zoomable window
+- Custom variables
 
 # Todo
 - Tracing (show y value at a specific x value)
-- Variable definition
+- ~Variable definition~
 - Polar coordinates
 - A table
-- Saving and loading
+- ~Saving and loading~
 - Changing equation colors
 - Make the code less horrible
